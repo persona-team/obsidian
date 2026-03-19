@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>서비스 플로우 — Persona Frame</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+      background: #06091a; color: #fff; height: 100vh; overflow: hidden;
+    }
+
+    /* ── TOP NAV ─────────────────────────────────── */
+    .top-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      display: flex; align-items: center; padding: 0 32px; height: 50px;
+      background: rgba(6,9,26,.9); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .brand { font-size: 12px; font-weight: 700; letter-spacing: 4px; color: #c8a86b; flex: 1; }
+    .top-nav a {
+      text-decoration: none; color: rgba(255,255,255,.35); font-size: 11px;
+      letter-spacing: 1.8px; text-transform: uppercase;
+      padding: 5px 14px; border: 1px solid rgba(255,255,255,.08);
+      border-radius: 3px; margin-left: 6px;
+      transition: color .25s, border-color .25s, background .25s;
+    }
+    .top-nav a:hover, .top-nav a.active { color: #c8a86b; border-color: rgba(200,168,107,.35); background: rgba(200,168,107,.04); }
+
+    /* ── SLIDES ──────────────────────────────────── */
+    .slides { position: fixed; inset: 0; top: 50px; bottom: 50px; }
+    .slide {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      opacity: 0; transform: translateX(70px);
+      transition: opacity .5s cubic-bezier(.4,0,.2,1), transform .5s cubic-bezier(.4,0,.2,1);
+      pointer-events: none;
+    }
+    .slide.active { opacity: 1; transform: translateX(0); pointer-events: all; }
+    .slide.prev   { opacity: 0; transform: translateX(-70px); }
+
+    /* ── BOTTOM BAR ──────────────────────────────── */
+    .bottom-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 50px;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      background: rgba(6,9,26,.9); backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(255,255,255,.06); z-index: 200;
+    }
+    .nav-btn { background: none; border: 1px solid rgba(255,255,255,.1); color: rgba(255,255,255,.45); padding: 5px 16px; border-radius: 3px; cursor: pointer; font-size: 14px; transition: color .2s, border-color .2s; }
+    .nav-btn:hover { color: #fff; border-color: rgba(255,255,255,.3); }
+    .slide-dots { display: flex; gap: 6px; align-items: center; }
+    .dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.18); cursor: pointer; transition: background .3s, width .3s, border-radius .3s; }
+    .dot.active { width: 18px; border-radius: 3px; background: #6fcfff; }
+    .slide-counter { font-size: 10px; color: rgba(255,255,255,.22); letter-spacing: 1px; }
+    .page-links { position: absolute; right: 20px; display: flex; gap: 5px; }
+    .page-links a { text-decoration: none; color: rgba(255,255,255,.28); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; padding: 3px 10px; border: 1px solid rgba(255,255,255,.07); border-radius: 2px; transition: color .2s, border-color .2s; }
+    .page-links a:hover { color: #6fcfff; border-color: rgba(111,207,255,.3); }
+
+    /* ── ANIMATIONS ─────────────────────────────── */
+    @keyframes fadeUp    { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeIn    { from{opacity:0} to{opacity:1} }
+    @keyframes slideLeft { from{opacity:0;transform:translateX(-44px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes slideRight{ from{opacity:0;transform:translateX(44px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes scaleIn   { from{opacity:0;transform:scale(.65)} to{opacity:1;transform:scale(1)} }
+    @keyframes float     { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    @keyframes waveBar   { 0%,100%{height:4px} 50%{height:26px} }
+    @keyframes zzz       { 0%{opacity:0;transform:translateY(0) scale(.6)} 50%{opacity:1} 100%{opacity:0;transform:translateY(-28px) scale(1.1)} }
+    @keyframes ripple    { 0%{transform:scale(.5);opacity:.8} 100%{transform:scale(3.5);opacity:0} }
+    @keyframes blink     { 0%,100%{opacity:1} 50%{opacity:.15} }
+    @keyframes thinkDot  { 0%,100%{opacity:.2;transform:scale(.8)} 50%{opacity:1;transform:scale(1.2)} }
+    @keyframes arrowPulse{ 0%,100%{opacity:.3;transform:translateX(0)} 50%{opacity:.7;transform:translateX(4px)} }
+    @keyframes checkDraw { from{stroke-dashoffset:36} to{stroke-dashoffset:0} }
+    @keyframes speakerWave{ 0%,100%{height:4px} 50%{height:22px} }
+
+    /* ── AI CHARACTER ────────────────────────────── */
+    .ai-char { display:flex; flex-direction:column; align-items:center; gap:4px; animation: float 3s ease-in-out infinite; }
+    .ai-face {
+      width:54px; height:54px; border-radius:50%;
+      background: radial-gradient(circle at 40% 35%, #3a8fff, #1a4aaa);
+      border: 2px solid rgba(111,207,255,.5); box-shadow: 0 0 22px rgba(58,143,255,.4);
+      display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px;
+    }
+    .ai-eyes { display:flex; gap:10px; }
+    .ai-eye  { width:7px; height:7px; border-radius:50%; background:#fff; }
+    .ai-mouth{ width:18px; height:8px; border:2px solid rgba(255,255,255,.85); border-top:none; border-radius:0 0 9px 9px; }
+    .ai-name { font-size:9px; letter-spacing:1.5px; color:rgba(111,207,255,.6); }
+
+    /* ── MINI MONITOR ────────────────────────────── */
+    .mshell {
+      background: #08091e; border-radius: 10px;
+      border: 2px solid #1a1c36;
+      box-shadow: 0 0 0 1px #22243c, 0 16px 48px rgba(0,0,0,.8);
+      position: relative; overflow: hidden;
+    }
+    .mshell::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(to bottom,transparent 0px,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px); pointer-events:none; z-index:50; }
+    .mcontent { position:absolute; inset:0; padding:14px; z-index:1; display:flex; align-items:center; justify-content:center; }
+
+    /* ── SEC LABEL ───────────────────────────────── */
+    .sec-label {
+      position: absolute; top: 28px;
+      font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+      color: rgba(255,255,255,.22);
+    }
+
+    /* ─────────────────────────────────────────────────── */
+    /* SLIDE 0 · TITLE                                     */
+    /* ─────────────────────────────────────────────────── */
+    .t0-title { font-size: 72px; font-weight: 700; letter-spacing: -3px; opacity:0; }
+    .t0-sub   { font-size: 13px; letter-spacing: 5px; color: rgba(255,255,255,.28); margin-top:6px; opacity:0; }
+    .t0-phases{ display:flex; gap:0; margin-top:52px; opacity:0; }
+    .t0-phase {
+      display:flex; flex-direction:column; align-items:center; gap:10px;
+      padding:0 28px; border-right:1px solid rgba(255,255,255,.06);
+    }
+    .t0-phase:last-child { border-right:none; }
+    .t0-num   { width:36px; height:36px; border-radius:50%; border:1px solid rgba(111,207,255,.3); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; color:#6fcfff; }
+    .t0-emoji { font-size:22px; }
+    .t0-lbl   { font-size:9px; letter-spacing:1.8px; color:rgba(255,255,255,.32); white-space:nowrap; text-align:center; line-height:1.6; }
+    .slide[data-index="0"].active .t0-title  { animation: fadeUp .8s .1s forwards; }
+    .slide[data-index="0"].active .t0-sub    { animation: fadeUp .8s .3s forwards; }
+    .slide[data-index="0"].active .t0-phases { animation: fadeUp .8s .55s forwards; }
+
+    /* ─────────────────────────────────────────────────── */
+    /* SLIDE 1 · 상시 대기                                  */
+    /* ─────────────────────────────────────────────────── */
+    .idle-scene { display:flex; flex-direction:column; align-items:center; gap:20px; }
+    .idle-monitor-wrap { opacity:0; animation: scaleIn .7s .1s cubic-bezier(.3,.8,.3,1.1) forwards; }
+
+    /* Dot indicators row */
+    .status-pills { display:flex; gap:8px; opacity:0; animation: fadeIn .5s .9s forwards; }
+    .pill {
+      padding:4px 14px; border-radius:3px; font-size:9px; letter-spacing:2px;
+      border:1px solid; font-weight:600;
+    }
+    .pill-idle  { background:rgba(111,207,255,.08); color:#6fcfff; border-color:rgba(111,207,255,.25); }
+    .pill-sleep { background:rgba(150,150,200,.08); color:#9696c8; border-color:rgba(150,150,200,.25); }
+
+    /* Sleep dim overlay */
+    .sleep-overlay {
+      position:absolute; inset:0; background:rgba(0,0,0,.76);
+      display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px;
+      z-index:10; opacity:0; animation: fadeIn 1.8s 1.4s forwards;
+    }
+    .zzz { font-size:15px; color:rgba(111,207,255,.65); opacity:0; animation: zzz 2.2s infinite; }
+    .zzz:nth-child(2){animation-delay:.7s} .zzz:nth-child(3){animation-delay:1.4s}
+
+    /* ─────────────────────────────────────────────────── */
+    /* SLIDE 2 · AI 호출                                   */
+    /* ─────────────────────────────────────────────────── */
+    .wake-row { display:flex; align-items:center; gap:0; }
+    .wake-col { display:flex; flex-direction:column; align-items:center; gap:14px; padding:0 32px; }
+
+    .person-glyph { font-size:80px; line-height:1; }
+    .speech-bub {
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15);
+      border-radius:18px 18px 18px 4px; padding:10px 22px;
+      font-size:24px; font-weight:700;
+    }
+
+    .mic-wrap { position:relative; display:flex; align-items:center; justify-content:center; width:110px; height:110px; }
+    .pulse-ring { width:90px; height:90px; border-radius:50%; border:1.5px solid rgba(111,207,255,.22); position:absolute; animation: ripple 2s infinite; }
+    .pulse-ring:nth-child(2){animation-delay:.66s}.pulse-ring:nth-child(3){animation-delay:1.32s}
+    .mic-glyph { font-size:52px; position:relative; z-index:1; }
+
+    .wave-bars { display:flex; gap:4px; align-items:center; height:30px; }
+    .wbar { width:4px; background:#6fcfff; border-radius:2px; animation: waveBar .55s infinite alternate; }
+    .wbar:nth-child(2){animation-delay:.1s}.wbar:nth-child(3){animation-delay:.2s}.wbar:nth-child(4){animation-delay:.3s}.wbar:nth-child(5){animation-delay:.15s}
+
+    .big-arrow { font-size:24px; color:rgba(111,207,255,.3); animation: arrowPulse 1.6s infinite; }
+
+    .wake-col:nth-child(1){ opacity:0; animation: slideLeft .7s .1s forwards; }
+    .wake-col:nth-child(3){ opacity:0; animation: scaleIn .7s .35s forwards; }
+    .wake-col:nth-child(5){ opacity:0; animation: slideRight .7s .6s forwards; }
+    .wake-arrow:nth-child(2){ opacity:0; animation: fadeIn .5s .75s forwards; }
+    .wake-arrow:nth-child(4){ opacity:0; animation: fadeIn .5s .95s forwards; }
+
+    /* ─────────────────────────────────────────────────── */
+    /* SLIDE 3 · 명령 입력 및 AI 처리 (사용자 관점)         */
+    /* ─────────────────────────────────────────────────── */
+    .cmd-scene { display:flex; align-items:center; gap:52px; }
+    .cmd-left  { display:flex; flex-direction:column; gap:16px; opacity:0; animation: slideLeft .7s .1s forwards; }
+    .cmd-right { opacity:0; animation: slideRight .7s .35s forwards; }
+
+    /* User speech bubble */
+    .user-bubble {
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14);
+      border-radius:18px 18px 18px 4px; padding:12px 20px;
+    }
+    .ub-who { font-size:9px; color:rgba(255,255,255,.3); letter-spacing:1px; margin-bottom:5px; }
+    .ub-text { font-size:18px; font-weight:500; }
+
+    /* Thinking dots */
+    .think-dots { display:flex; gap:6px; align-items:center; }
+    .tdot {
+      width:8px; height:8px; border-radius:50%;
+      background:rgba(255,200,80,.6);
+      animation: thinkDot 1.2s infinite;
+    }
+    .tdot:nth-child(2){animation-delay:.4s}.tdot:nth-child(3){animation-delay:.8s}
+
+    /* Thinking monitor content */
+    .think-content { display:flex; flex-direction:column; align-items:center; gap:14px; }
+    .think-ai-face {
+      width:68px; height:68px; border-radius:50%;
+      background: radial-gradient(circle at 40% 35%, #3a8fff, #1a4aaa);
+      border: 2px solid rgba(255,200,80,.55);
+      box-shadow: 0 0 28px rgba(255,200,80,.3);
+      display:flex; align-items:center; justify-content:center; flex-direction:column; gap:7px;
+      animation: float 2.5s ease-in-out infinite;
+    }
+
+    /* ─────────────────────────────────────────────────── */
+    /* SLIDE 4 · 결과 피드백 (사용자 관점)                   */
+    /* ─────────────────────────────────────────────────── */
+    .fb-wrap { display:flex; align-items:center; gap:44px; }
+    .fb-col  { display:flex; flex-direction:column; align-items:center; gap:16px; }
+    .fb-div  { width:1px; height:240px; background:rgba(255,255,255,.07); }
+
+    /* Success side */
+    .fb-ok-1 { opacity:0; animation: scaleIn .6s .1s cubic-bezier(.3,.8,.3,1.3) forwards; }
+    .fb-ok-2 { opacity:0; animation: fadeIn .5s .4s forwards; }
+    .fb-ok-3 { opacity:0; animation: fadeIn .5s .7s forwards; }
+    .fb-ok-4 { opacity:0; animation: fadeIn .5s .9s forwards; }
+
+    /* Error side */
+    .fb-err-1 { opacity:0; animation: scaleIn .6s .2s cubic-bezier(.3,.8,.3,1.3) forwards; }
+    .fb-err-2 { opacity:0; animation: fadeIn .5s .55s forwards; }
+    .fb-err-3 { opacity:0; animation: fadeIn .5s .85s forwards; }
+
+    .big-emoji { font-size:52px; }
+
+    /* AI response bubble */
+    .ai-bubble {
+      background:rgba(58,143,255,.07); border:1px solid rgba(58,143,255,.2);
+      border-radius:4px 18px 18px 18px; padding:10px 16px;
+      font-size:11px; color:rgba(255,255,255,.7); line-height:1.6; max-width:200px;
+    }
+
+    /* Speaker waves */
+    .spk-waves { display:flex; gap:3px; align-items:flex-end; height:28px; }
+    .spk-w { width:4px; border-radius:2px; background:#64ff96; animation: speakerWave .45s infinite alternate; }
+    .spk-w:nth-child(1){height:8px;animation-delay:.0s}.spk-w:nth-child(2){height:16px;animation-delay:.1s}
+    .spk-w:nth-child(3){height:26px;animation-delay:.2s}.spk-w:nth-child(4){height:16px;animation-delay:.3s}
+    .spk-w:nth-child(5){height:8px;animation-delay:.4s}
+
+    .pill-ok  { background:rgba(100,255,130,.08); color:#64ff90; border-color:rgba(100,255,130,.25); }
+    .pill-err { background:rgba(255,80,80,.08);   color:#ff5050; border-color:rgba(255,80,80,.25); }
+  </style>
+</head>
+<body>
+
+  <nav class="top-nav">
+    <span class="brand">Persona Frame</span>
+    <a href="index.html">Home</a>
+    <a href="features.html">기능</a>
+    <a href="serviceFlow.html" class="active">서비스 플로우</a>
+    <a href="logicalArchitecture.html">논리적 아키텍처</a>
+  </nav>
+
+  <div class="slides" id="slides">
+
+    <!-- ─── 0 · TITLE ───────────────────────────── -->
+    <div class="slide active" data-index="0">
+      <div class="t0-title">서비스 플로우</div>
+      <div class="t0-sub">SERVICE FLOW</div>
+      <div class="t0-phases">
+        <div class="t0-phase">
+          <div class="t0-num">01</div>
+          <div class="t0-emoji">🖥️</div>
+          <div class="t0-lbl">상시 대기 및<br>시각 정보 제공</div>
+        </div>
+        <div class="t0-phase">
+          <div class="t0-num">02</div>
+          <div class="t0-emoji">🎙️</div>
+          <div class="t0-lbl">AI 호출</div>
+        </div>
+        <div class="t0-phase">
+          <div class="t0-num">03</div>
+          <div class="t0-emoji">💬</div>
+          <div class="t0-lbl">명령 입력 및<br>AI 처리</div>
+        </div>
+        <div class="t0-phase">
+          <div class="t0-num">04</div>
+          <div class="t0-emoji">✅</div>
+          <div class="t0-lbl">결과 피드백</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 1 · 상시 대기 및 시각 정보 제공 ──────── -->
+    <div class="slide" data-index="1">
+      <div class="sec-label">상시 대기 및 시각 정보 제공</div>
+      <div class="idle-scene">
+
+        <div class="idle-monitor-wrap">
+          <div class="mshell" style="width:min(560px,72vw);height:min(340px,50vh);">
+            <div class="mcontent" style="gap:40px;">
+              <!-- Info panel -->
+              <div style="opacity:0;animation:slideLeft .6s .3s forwards;">
+                <div style="font-size:44px;font-weight:300;letter-spacing:4px;" id="idleClock">--:--</div>
+                <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:8px;">☀️ &nbsp;서울 · 맑음 · 18°C</div>
+                <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">
+                  <div style="font-size:11px;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:7px;"><div style="width:4px;height:4px;border-radius:50%;background:#6fcfff;flex-shrink:0;"></div>09:00 &nbsp;팀 미팅</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:7px;"><div style="width:4px;height:4px;border-radius:50%;background:#6fcfff;flex-shrink:0;"></div>13:00 &nbsp;점심 약속</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:7px;"><div style="width:4px;height:4px;border-radius:50%;background:#6fcfff;flex-shrink:0;"></div>17:00 &nbsp;코드 리뷰</div>
+                </div>
+              </div>
+              <!-- AI character -->
+              <div style="opacity:0;animation:scaleIn .7s .6s cubic-bezier(.3,.8,.3,1.2) forwards;">
+                <div class="ai-char">
+                  <div class="ai-face">
+                    <div class="ai-eyes"><div class="ai-eye"></div><div class="ai-eye"></div></div>
+                    <div class="ai-mouth"></div>
+                  </div>
+                  <div class="ai-name">AI</div>
+                </div>
+              </div>
+            </div>
+            <!-- Sleep overlay fades in -->
+            <div class="sleep-overlay">
+              <div style="display:flex;gap:5px;">
+                <div class="zzz">z</div><div class="zzz">Z</div><div class="zzz">Z</div>
+              </div>
+              <div style="font-size:8px;color:rgba(255,255,255,.3);letter-spacing:2px;margin-top:4px;">SLEEP MODE</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- State pills -->
+        <div class="status-pills">
+          <div class="pill pill-idle">IDLE</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.2);align-self:center;">→</div>
+          <div class="pill pill-sleep">SLEEP</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── 2 · AI 호출 ──────────────────────────── -->
+    <div class="slide" data-index="2">
+      <div class="sec-label">AI 호출</div>
+      <div class="wake-row">
+
+        <!-- 사용자 -->
+        <div class="wake-col">
+          <div class="person-glyph">🙋</div>
+          <div class="speech-bub">"퍼비야!"</div>
+        </div>
+
+        <div class="wake-arrow">
+          <div class="big-arrow">→</div>
+        </div>
+
+        <!-- 마이크 감지 -->
+        <div class="wake-col">
+          <div class="mic-wrap">
+            <div class="pulse-ring"></div>
+            <div class="pulse-ring"></div>
+            <div class="pulse-ring"></div>
+            <div class="mic-glyph">🎙️</div>
+          </div>
+          <div class="wave-bars">
+            <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+            <div class="wbar"></div><div class="wbar"></div>
+          </div>
+          <div style="font-size:9px;color:rgba(100,255,150,.7);letter-spacing:1.5px;">WAKE WORD 감지됨 ✓</div>
+        </div>
+
+        <div class="wake-arrow">
+          <div class="big-arrow">→</div>
+        </div>
+
+        <!-- 액자 반응 -->
+        <div class="wake-col">
+          <div class="mshell" style="width:160px;height:106px;">
+            <div class="mcontent" style="gap:10px;">
+              <div class="ai-char" style="animation:float 2s ease-in-out infinite;">
+                <div class="ai-face" style="width:44px;height:44px;border-color:rgba(100,255,150,.55);box-shadow:0 0 22px rgba(100,255,150,.3);">
+                  <div class="ai-eyes"><div class="ai-eye" style="width:6px;height:6px;"></div><div class="ai-eye" style="width:6px;height:6px;"></div></div>
+                  <div class="ai-mouth" style="width:14px;height:6px;"></div>
+                </div>
+                <div class="ai-name" style="color:rgba(100,255,150,.65);">Listening…</div>
+              </div>
+              <div class="wave-bars" style="height:24px;">
+                <div class="wbar" style="background:#64ff96;"></div>
+                <div class="wbar" style="background:#64ff96;animation-delay:.1s;"></div>
+                <div class="wbar" style="background:#64ff96;animation-delay:.2s;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="pill pill-idle" style="background:rgba(100,255,150,.08);color:#64ff96;border-color:rgba(100,255,150,.3);">LISTENING</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── 3 · 명령 입력 및 AI 처리 ──────────────── -->
+    <div class="slide" data-index="3">
+      <div class="sec-label">명령 입력 및 AI 처리</div>
+      <div class="cmd-scene">
+
+        <!-- 사용자 명령 -->
+        <div class="cmd-left">
+          <div style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.25);">사용자</div>
+          <div class="user-bubble">
+            <div class="ub-who">🙋 음성 명령</div>
+            <div class="ub-text">"오늘 일정 알려줘"</div>
+          </div>
+          <!-- More command examples -->
+          <div style="display:flex;flex-direction:column;gap:8px;opacity:0;animation:fadeIn .6s .8s forwards;">
+            <div style="font-size:10px;color:rgba(255,255,255,.2);letter-spacing:1px;margin-bottom:2px;">다른 명령 예시</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.3);padding:7px 14px;border:1px solid rgba(255,255,255,.07);border-radius:8px;">"음악 틀어줘"</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.3);padding:7px 14px;border:1px solid rgba(255,255,255,.07);border-radius:8px;">"타이머 30분"</div>
+          </div>
+        </div>
+
+        <!-- 액자 반응: AI 처리 중 -->
+        <div class="cmd-right">
+          <div class="mshell" style="width:min(280px,36vw);height:min(210px,32vh);">
+            <div class="mcontent" style="flex-direction:column;gap:16px;">
+              <div class="think-content">
+                <div class="think-ai-face">
+                  <div class="ai-eyes"><div class="ai-eye"></div><div class="ai-eye"></div></div>
+                  <div class="ai-mouth" style="width:18px;height:8px;border-color:rgba(255,200,80,.8);"></div>
+                </div>
+                <div class="think-dots">
+                  <div class="tdot"></div>
+                  <div class="tdot"></div>
+                  <div class="tdot"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="pill pill-idle" style="margin-top:12px;background:rgba(255,200,80,.08);color:#ffc850;border-color:rgba(255,200,80,.3);">THINKING…</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── 4 · 결과 피드백 ──────────────────────── -->
+    <div class="slide" data-index="4">
+      <div class="sec-label">결과 피드백</div>
+      <div class="fb-wrap">
+
+        <!-- ✅ 성공 -->
+        <div class="fb-col">
+          <div class="big-emoji fb-ok-1">✅</div>
+
+          <div class="mshell fb-ok-2" style="width:210px;height:130px;">
+            <div class="mcontent" style="gap:12px;">
+              <div>
+                <div style="font-size:9px;color:rgba(100,255,130,.7);letter-spacing:.5px;margin-bottom:6px;">일정 업데이트</div>
+                <div style="font-size:12px;color:rgba(255,255,255,.75);line-height:1.9;">
+                  15:00 코드 리뷰<br>
+                  <span style="color:rgba(100,255,130,.75);font-size:10px;">추가됨 ✓</span>
+                </div>
+              </div>
+              <div class="ai-char" style="animation:float 2.5s ease-in-out infinite;">
+                <div class="ai-face" style="width:38px;height:38px;">
+                  <div class="ai-eyes"><div class="ai-eye" style="width:6px;height:6px;"></div><div class="ai-eye" style="width:6px;height:6px;"></div></div>
+                  <div class="ai-mouth" style="width:12px;height:5px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI 음성 응답 -->
+          <div class="ai-bubble fb-ok-3">
+            "네, 15시에 코드 리뷰를<br>추가했어요! 🗓️"
+          </div>
+
+          <!-- Speaker waves -->
+          <div class="spk-waves fb-ok-4">
+            <div class="spk-w"></div><div class="spk-w"></div><div class="spk-w"></div>
+            <div class="spk-w"></div><div class="spk-w"></div>
+          </div>
+          <div class="pill pill-ok fb-ok-4">🔊 음성 답변 출력</div>
+        </div>
+
+        <div class="fb-div"></div>
+
+        <!-- ❓ 오류 -->
+        <div class="fb-col">
+          <div class="big-emoji fb-err-1">❓</div>
+
+          <div class="mshell fb-err-2" style="width:210px;height:130px;">
+            <div class="mcontent" style="flex-direction:column;gap:8px;">
+              <div class="ai-char" style="animation:float 2s ease-in-out infinite;">
+                <div class="ai-face" style="width:44px;height:44px;border-color:rgba(255,80,80,.45);box-shadow:0 0 18px rgba(255,80,80,.25);">
+                  <div class="ai-eyes"><div class="ai-eye" style="width:7px;height:7px;"></div><div class="ai-eye" style="width:7px;height:7px;"></div></div>
+                  <!-- Frown -->
+                  <div style="width:16px;height:7px;border:2px solid rgba(255,80,80,.75);border-bottom:none;border-radius:8px 8px 0 0;"></div>
+                </div>
+              </div>
+              <!-- Error bubble on screen -->
+              <div style="font-size:10px;color:rgba(255,80,80,.7);background:rgba(255,80,80,.06);padding:4px 10px;border-radius:4px;border:1px solid rgba(255,80,80,.15);">
+                다시 말해줘 🔄
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-bubble fb-err-3" style="border-color:rgba(255,80,80,.2);background:rgba(255,80,80,.04);">
+            "잘 못 들었어요.<br>다시 말씀해 주세요! 🙏"
+          </div>
+          <div class="pill pill-err fb-err-3">⚠️ 재입력 요청</div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /slides -->
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+    <button class="nav-btn" onclick="navigate(-1)">←</button>
+    <div class="slide-dots" id="dots"></div>
+    <div class="slide-counter" id="counter">1 / 5</div>
+    <button class="nav-btn" onclick="navigate(1)">→</button>
+    <div class="page-links">
+      <a href="features.html">기능</a>
+      <a href="logicalArchitecture.html">논리적 아키텍처</a>
+    </div>
+  </div>
+
+  <script>
+    const TOTAL = 5;
+    let cur = 0;
+    const slides = document.querySelectorAll('.slide');
+    const dotsEl = document.getElementById('dots');
+    const counter = document.getElementById('counter');
+
+    for (let i = 0; i < TOTAL; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i === 0 ? ' active' : '');
+      d.onclick = () => goTo(i);
+      dotsEl.appendChild(d);
+    }
+
+    function goTo(n) {
+      if (n < 0 || n >= TOTAL) return;
+      slides[cur].className = 'slide prev';
+      dotsEl.querySelectorAll('.dot')[cur].classList.remove('active');
+      cur = n;
+      slides[cur].className = 'slide active';
+      dotsEl.querySelectorAll('.dot')[cur].classList.add('active');
+      counter.textContent = `${cur + 1} / ${TOTAL}`;
+    }
+    function navigate(d) { goTo(cur + d); }
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') navigate(1);
+      if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   navigate(-1);
+    });
+
+    // Live clock
+    function updateClock() {
+      const el = document.getElementById('idleClock');
+      if (!el) return;
+      const now = new Date();
+      el.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+  </script>
+</body>
+</html>

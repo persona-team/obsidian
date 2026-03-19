@@ -1,0 +1,9 @@
+{
+  "enabledCssSnippets": [
+    "table",
+    "callout-custom",
+    "table-custom",
+    "highlight",
+    "text-color"
+  ]
+}
