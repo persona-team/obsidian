@@ -13,7 +13,6 @@ tags:
              <th>설명</th>
         </tr>
     </thead>
-
 	<tbody>
 	    <tr>
 		    <th scope="row">시간</th>
@@ -40,7 +39,6 @@ tags:
              <th>설명</th>
         </tr>
     </thead>
-
 	<tbody>
 	    <tr>
 		    <th scope="row">Wake Word 감지</th>
@@ -75,7 +73,6 @@ tags:
              <th>설명</th>
         </tr>
     </thead>
-
 	<tbody>
 	    <tr>
 		    <th scope="row">날씨 연동 UI</th>
@@ -100,7 +97,6 @@ tags:
              <th>애니메이션</th>
         </tr>
     </thead>
-
 	<tbody>
 	    <tr>
 		    <th scope="row" style="background-color:white; color:#55ABCB">Idle</th>
@@ -163,7 +159,6 @@ tags:
              <th>설명</th>
         </tr>
     </thead>
-
 	<tbody>
 	    <tr>
 		    <th scope="row">모바일 연동</th>

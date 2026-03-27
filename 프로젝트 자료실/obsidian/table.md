@@ -13,7 +13,6 @@ cssclasses:
              <th></th>
         </tr>
     </thead>
-
 	<tbody>
 	    <tr>
 		    <th scope="row"></th>
